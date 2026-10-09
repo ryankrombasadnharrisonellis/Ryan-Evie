@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 253 246 241;      /* warm cream */
+  --card: 255 255 255;
+  --ink: 58 42 48;        /* soft plum-brown */
+  --muted: 140 120 126;
+  --line: 240 226 222;
+  --rose: 236 112 132;    /* main accent */
+  --peach: 247 178 140;
+  --sky: 140 176 222;
+  --shadow: 120 60 70;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: 27 22 32;
+    --card: 40 33 46;
+    --ink: 246 234 238;
+    --muted: 170 152 162;
+    --line: 60 50 68;
+    --rose: 244 132 152;
+    --peach: 240 170 130;
+    --sky: 130 165 215;
+    --shadow: 0 0 0;
+    color-scheme: dark;
+  }
+}
+
+html,
+body {
+  background: rgb(var(--bg));
+  color: rgb(var(--ink));
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+body {
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@layer components {
+  .card {
+    @apply rounded-3xl bg-card p-5 shadow-soft border border-line/60;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 font-semibold transition active:scale-95 disabled:opacity-50 disabled:active:scale-100;
+  }
+  .btn-primary {
+    @apply btn bg-rose text-white shadow-soft;
+  }
+  .btn-ghost {
+    @apply btn bg-line/60 text-ink;
+  }
+  .input {
+    @apply w-full rounded-2xl border border-line bg-bg px-4 py-3 text-base text-ink outline-none placeholder:text-muted focus:border-rose;
+  }
+}
