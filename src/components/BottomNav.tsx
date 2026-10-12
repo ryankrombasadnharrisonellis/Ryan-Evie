@@ -15,7 +15,7 @@ export default function BottomNav() {
   if (path === "/login" || path.startsWith("/install")) return null;
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-line/70 bg-card/90 backdrop-blur-md"
+      className="relative z-40 shrink-0 border-t border-line/70 bg-card/90 backdrop-blur-md"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <ul className="mx-auto flex max-w-md justify-around px-2">
