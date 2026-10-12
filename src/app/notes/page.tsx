@@ -1,0 +1,77 @@
+import { createClient } from "@/lib/supabase/server";
+import { getMeAndPartner } from "@/lib/people";
+import { formatWhen, timeAgo, tzCity } from "@/lib/time";
+import { markNotesRead } from "@/app/actions";
+import NoteComposer from "./NoteComposer";
+import CancelNoteButton from "./CancelNoteButton";
+
+export const dynamic = "force-dynamic";
+
+export default async function NotesPage() {
+  const supabase = await createClient();
+  const { me, partner } = await getMeAndPartner(supabase);
+  if (!me) return null;
+  const partnerName = partner?.display_name || "your person";
+
+  const { data } = await supabase
+    .from("notes")
+    .select("id, sender_id, recipient_id, body, deliver_at, delivered_at, read_at, created_at")
+    .order("deliver_at", { ascending: false })
+    .limit(100);
+  const notes = data ?? [];
+  const unreadIds = notes.filter((n) => n.recipient_id === me.id && !n.read_at).map((n) => n.id);
+  if (unreadIds.length) await markNotesRead();
+
+  const scheduled = notes.filter((n) => n.sender_id === me.id && !n.delivered_at).reverse();
+  const timeline = notes.filter((n) => n.delivered_at);
+
+  return (
+    <div className="space-y-4 pb-24">
+      <header className="pt-2">
+        <h1 className="font-display text-3xl font-semibold">Notes 💌</h1>
+        <p className="text-sm text-muted">Little messages, now or for later.</p>
+      </header>
+
+      {partner && <NoteComposer partnerName={partnerName} partnerTimezone={partner.timezone} partnerCity={partner.city || tzCity(partner.timezone)} />}
+
+      {scheduled.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="px-1 text-sm font-semibold text-muted">⏰ Scheduled for {partnerName}</h2>
+          {scheduled.map((n) => (
+            <div key={n.id} className="card flex items-start gap-3 p-4">
+              <div className="min-w-0 flex-1">
+                <p className="whitespace-pre-wrap break-words">{n.body}</p>
+                <p className="mt-1 text-xs text-muted">
+                  Arrives {formatWhen(new Date(n.deliver_at), partner?.timezone ?? me.timezone)} their time
+                </p>
+              </div>
+              <CancelNoteButton id={n.id} />
+            </div>
+          ))}
+        </section>
+      )}
+
+      <section className="space-y-2">
+        {timeline.length === 0 && <p className="card text-center text-muted">No notes yet. Write the first one 💗</p>}
+        {timeline.map((n) => {
+          const mine = n.sender_id === me.id;
+          return (
+            <div key={n.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+              <div
+                className={`max-w-[85%] rounded-3xl px-4 py-3 shadow-soft ${
+                  mine ? "rounded-br-lg bg-rose text-white" : "rounded-bl-lg border border-line/60 bg-card"
+                } ${!mine && unreadIds.includes(n.id) ? "ring-2 ring-peach" : ""}`}
+              >
+                <p className="whitespace-pre-wrap break-words">{n.body}</p>
+                <p className={`mt-1 text-[11px] ${mine ? "text-white/75" : "text-muted"}`}>
+                  {timeAgo(new Date(n.delivered_at))}
+                  {mine && (n.read_at ? " · Seen" : " · Delivered")}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </section>
+    </div>
+  );
+}

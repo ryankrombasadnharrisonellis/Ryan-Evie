@@ -5,7 +5,7 @@ import Hearts, { type HeartsHandle } from "@/components/Hearts";
 
 type Status = "checking" | "needs-install" | "unsupported" | "off" | "denied" | "on";
 
-export default function PushSetup({ partnerName }: { partnerName: string | null }) {
+export default function PushSetup({ partnerName, compact = false }: { partnerName: string | null; compact?: boolean }) {
   const [status, setStatus] = useState<Status>("checking");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -54,6 +54,9 @@ export default function PushSetup({ partnerName }: { partnerName: string | null 
       hearts.current?.burst(6);
     }
   }
+
+  // On the home screen, only show this card while something still needs doing.
+  if (compact && (status === "on" || status === "checking")) return <Hearts ref={hearts} />;
 
   return (
     <div className="card space-y-4 animate-fadeIn">

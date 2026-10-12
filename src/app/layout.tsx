@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Nunito, Fredoka } from "next/font/google";
 import "./globals.css";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import BottomNav from "@/components/BottomNav";
+import LiveRefresh from "@/components/LiveRefresh";
 
 const sans = Nunito({ subsets: ["latin"], variable: "--font-sans" });
 const display = Fredoka({ subsets: ["latin"], variable: "--font-display", weight: ["500", "600"] });
@@ -35,7 +37,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${sans.variable} ${display.variable}`}>
       <body className="font-sans antialiased">
         <ServiceWorkerRegister />
+        <LiveRefresh />
         <main className="mx-auto w-full max-w-md px-4 pb-10 pt-4">{children}</main>
+        <BottomNav />
       </body>
     </html>
   );
