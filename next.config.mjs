@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
+  // Node-only libraries: load them at runtime instead of bundling.
+  serverExternalPackages: ["web-push"],
   async headers() {
     return [
       {
