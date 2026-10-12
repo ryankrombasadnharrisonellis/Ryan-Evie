@@ -39,10 +39,36 @@ body {
   overscroll-behavior-y: none;
 }
 
+/*
+  App shell: the page itself never scrolls. On iPhone home-screen apps, a
+  position:fixed bar drifts up the screen when the body scrolls, so instead the
+  body is a full-height column — .app-scroll (the content) scrolls inside it and
+  the bottom nav is simply the last row.
+*/
+html,
 body {
-  min-height: 100dvh;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
   padding-top: env(safe-area-inset-top);
+}
+
+.app-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* The nav pads itself for the home indicator, so the content doesn't need to. */
+body:has(> nav) .app-scroll {
+  padding-bottom: 0;
 }
 
 @layer components {
