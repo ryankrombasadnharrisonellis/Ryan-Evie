@@ -5,6 +5,7 @@ import PushSetup from "@/components/PushSetup";
 import ProfileForm from "./ProfileForm";
 import VisitForm from "./VisitForm";
 import TogetherForm from "./TogetherForm";
+import FacetimeForm from "./FacetimeForm";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,8 @@ export default async function SettingsPage() {
           quiet_end: me.quiet_end?.slice(0, 5) ?? null,
         }}
       />
+
+      <FacetimeForm initial={me.facetime ?? null} />
 
       <VisitForm initial={settings?.next_visit ?? null} />
 

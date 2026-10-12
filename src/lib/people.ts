@@ -11,6 +11,7 @@ export type Profile = {
   quiet_start: string | null;
   quiet_end: string | null;
   onboarded: boolean;
+  facetime?: string | null;
 };
 
 /** Returns the logged-in person and their partner (the only other profile). */

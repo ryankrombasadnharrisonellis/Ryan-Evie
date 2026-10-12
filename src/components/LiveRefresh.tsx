@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-const TABLES = ["pings", "notes", "goodnights", "moods", "question_answers", "couple_settings", "profiles", "games", "word_results", "photo_swaps"];
+const TABLES = ["pings", "notes", "goodnights", "moods", "question_answers", "couple_settings", "profiles", "games", "word_results", "photo_swaps", "sos"];
 
 /** Keeps the screen fresh: refreshes when the other person does something, when a push arrives, or when the app is reopened. */
 async function syncAppBadge() {

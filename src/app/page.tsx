@@ -11,6 +11,9 @@ import GoodnightCard from "@/components/GoodnightCard";
 import Clocks from "@/components/Clocks";
 import Countdown from "@/components/Countdown";
 import ScoreboardCard from "@/components/ScoreboardCard";
+import SosCard from "@/components/SosCard";
+import SosBanner from "@/components/SosBanner";
+import { ACK_INFO, type SosAck, type SosKind } from "@/lib/sos";
 import UsCard from "@/components/UsCard";
 import PlantCard from "@/components/PlantCard";
 import { getPlant } from "@/lib/plant";
@@ -38,7 +41,7 @@ export default async function Home() {
   const qdate = todayQDate();
   const question = questionFor(qdate);
 
-  const [pingsRes, moodsRes, notesRes, gnRes, settingsRes, answeredRes, myWeather, partnerWeather, board, myTurnRes, plant, myPhotoRes] = await Promise.all([
+  const [pingsRes, moodsRes, notesRes, gnRes, settingsRes, answeredRes, myWeather, partnerWeather, board, myTurnRes, plant, myPhotoRes, sosRes] = await Promise.all([
     supabase.from("pings").select("sender_id").gte("created_at", dayStart),
     supabase.from("moods").select("user_id, emoji, note, created_at").order("created_at", { ascending: false }).limit(20),
     supabase
@@ -57,7 +60,28 @@ export default async function Home() {
     supabase.from("games").select("id", { count: "exact", head: true }).eq("status", "active").eq("turn", me.id),
     getPlant(me.id, partner?.id ?? null),
     supabase.from("photo_swaps").select("id").eq("pdate", todayPDate()).maybeSingle(),
+    supabase
+      .from("sos")
+      .select("id, sender_id, recipient_id, kind, message, acked_at, ack, created_at")
+      .gte("created_at", new Date(Date.now() - 6 * 3600 * 1000).toISOString())
+      .order("created_at", { ascending: false })
+      .limit(30),
   ]);
+  const sosRows = (sosRes.data ?? []) as {
+    id: string; sender_id: string; recipient_id: string; kind: SosKind; message: string | null; acked_at: string | null; ack: SosAck | null; created_at: string;
+  }[];
+  const incomingSos = sosRows
+    .filter((r) => r.recipient_id === me.id && !r.acked_at)
+    .map((r) => ({ id: r.id, kind: r.kind, message: r.message, ago: timeAgo(new Date(r.created_at)) }));
+  const lastSentRow = sosRows.find((r) => r.sender_id === me.id);
+  const lastSent = lastSentRow
+    ? {
+        kind: lastSentRow.kind,
+        ack: lastSentRow.ack,
+        ackLabel: lastSentRow.ack ? `${ACK_INFO[lastSentRow.ack].emoji} ${ACK_INFO[lastSentRow.ack].label}` : null,
+        ago: timeAgo(new Date(lastSentRow.created_at)),
+      }
+    : null;
   const postedPhoto = !!myPhotoRes.data;
   const since = settingsRes.data?.together_since ?? null;
   const day = since ? dayTogether(since, me.timezone) : null;
@@ -100,6 +124,8 @@ export default async function Home() {
         </Link>
       </header>
 
+      <SosBanner items={incomingSos} partnerName={partnerName} partnerContact={partner?.facetime ?? null} />
+
       <PushSetup partnerName={partner?.display_name ?? null} compact />
 
       <Countdown nextVisit={settingsRes.data?.next_visit ?? null} timezone={me.timezone} />
@@ -130,6 +156,8 @@ export default async function Home() {
           <span className="text-muted">›</span>
         </Link>
       )}
+
+      <SosCard partnerName={partnerName} partnerContact={partner?.facetime ?? null} lastSent={lastSent} />
 
       <MoodCard partnerName={partnerName} partnerMood={partnerMood} myMood={myMood} />
 
