@@ -16,8 +16,9 @@ export type Profile = {
 /** Returns the logged-in person and their partner (the only other profile). */
 export async function getMeAndPartner(supabase: SupabaseClient) {
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) return { me: null, partner: null };
   const { data } = await supabase.from("profiles").select("*");
   const profiles = (data ?? []) as Profile[];

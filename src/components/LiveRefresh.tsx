@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-const TABLES = ["pings", "notes", "goodnights", "moods", "question_answers", "couple_settings", "profiles"];
+const TABLES = ["pings", "notes", "goodnights", "moods", "question_answers", "couple_settings", "profiles", "games", "word_results"];
 
 /** Keeps the screen fresh: refreshes when the other person does something, when a push arrives, or when the app is reopened. */
 export default function LiveRefresh() {

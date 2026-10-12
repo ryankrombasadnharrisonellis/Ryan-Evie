@@ -17,7 +17,18 @@ export default function PushSetup({ partnerName, compact = false }: { partnerNam
       if (!pushSupported()) return setStatus("unsupported");
       if (Notification.permission === "denied") return setStatus("denied");
       if (Notification.permission === "granted") {
+        // Re-save the subscription once per app launch, not on every screen.
+        let synced = false;
+        try {
+          synced = sessionStorage.getItem("push-synced") === "1";
+        } catch {}
+        if (synced) return setStatus("on");
         const ok = await resyncPush();
+        if (ok) {
+          try {
+            sessionStorage.setItem("push-synced", "1");
+          } catch {}
+        }
         return setStatus(ok ? "on" : "off");
       }
       setStatus("off");

@@ -27,9 +27,12 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // getSession reads the signed cookie locally (refreshing it only when it expires), so pages
+  // don't wait on a round trip to the auth server. Data access is still enforced by RLS.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
 
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));

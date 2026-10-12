@@ -1,12 +1,24 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMeAndPartner } from "@/lib/people";
 import { notify } from "@/lib/notify";
-import { isValidTimeZone, zonedToUtc } from "@/lib/time";
+import { isValidTimeZone, quietUntil, zonedToUtc } from "@/lib/time";
 import { questionFor, todayQDate } from "@/lib/questions";
+
+/** Send the push after the response has gone back, so taps feel instant. */
+function notifyLater(...args: Parameters<typeof notify>) {
+  after(async () => {
+    try {
+      await notify(...args);
+    } catch (e) {
+      console.error("[notify]", e);
+    }
+  });
+}
 
 type Result = { ok: true; message?: string } | { ok: false; error: string };
 
@@ -35,13 +47,14 @@ export async function sendPing(kind: PingKind): Promise<Result> {
     if (!(kind in PING_TEXT)) return { ok: false, error: "Unknown" };
     const { error } = await supabase.from("pings").insert({ sender_id: me.id, recipient_id: partner.id, kind });
     if (error) return { ok: false, error: error.message };
-    const r = await notify(
+    notifyLater(
       partner.id,
       { ...PING_TEXT[kind](me.display_name), url: "/", tag: "ping" },
       { senderName: me.display_name }
     );
     revalidatePath("/");
-    return { ok: true, message: r.queuedUntil ? `${partner.display_name}'s in quiet hours — it'll arrive when they wake up.` : undefined };
+    const quiet = quietUntil(new Date(), partner.timezone, partner.quiet_start, partner.quiet_end);
+    return { ok: true, message: quiet ? `${partner.display_name}'s in quiet hours — they'll get it when they wake up.` : undefined };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
   }
@@ -76,7 +89,7 @@ export async function sendNote(body: string, deliverLocal?: string): Promise<Res
     if (error) return { ok: false, error: error.message };
 
     if (!scheduled) {
-      await notify(partner.id, {
+      notifyLater(partner.id, {
         title: `💌 A note from ${me.display_name}`,
         body: text.length > 140 ? text.slice(0, 137) + "…" : text,
         url: "/notes",
@@ -110,7 +123,7 @@ export async function sayGoodnight(): Promise<Result> {
 
     if (partner) {
       const partnerDone = (recent ?? []).some((g) => g.user_id === partner.id);
-      await notify(
+      notifyLater(
         partner.id,
         partnerDone
           ? { title: "🌙 Goodnight, you two", body: `${me.display_name} said goodnight back. Sweet dreams ✨`, url: "/", tag: "goodnight" }
@@ -133,7 +146,7 @@ export async function setMood(emoji: string, note: string): Promise<Result> {
     const { error } = await supabase.from("moods").insert({ user_id: me.id, emoji: emoji.slice(0, 16), note: clean || null });
     if (error) return { ok: false, error: error.message };
     if (partner) {
-      await notify(partner.id, {
+      notifyLater(partner.id, {
         title: `${emoji} ${me.display_name} checked in`,
         body: clean || `Feeling ${emoji}`,
         url: "/",
@@ -164,7 +177,7 @@ export async function answerQuestion(answer: string): Promise<Result> {
     if (partner) {
       const { data: theirs } = await supabase.rpc("answered_today", { d: qdate });
       const partnerDone = ((theirs ?? []) as { user_id: string }[]).some((r) => r.user_id === partner.id);
-      await notify(partner.id, {
+      notifyLater(partner.id, {
         title: partnerDone ? "👀 You've both answered!" : `✍️ ${me.display_name} answered today's question`,
         body: partnerDone ? `See what ${me.display_name} said.` : "Your turn — then you can see their answer.",
         url: "/question",
@@ -228,7 +241,7 @@ export async function setNextVisit(date: string | null): Promise<Result> {
     if (error) return { ok: false, error: error.message };
     if (partner && date) {
       const nice = new Date(date + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
-      await notify(partner.id, { title: "🗓️ Countdown set!", body: `${me.display_name} set the next visit: ${nice}`, url: "/" });
+      notifyLater(partner.id, { title: "🗓️ Countdown set!", body: `${me.display_name} set the next visit: ${nice}`, url: "/" });
     }
     revalidatePath("/", "layout");
     return { ok: true, message: "Saved ✓" };

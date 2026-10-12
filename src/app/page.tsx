@@ -10,6 +10,8 @@ import MoodCard from "@/components/MoodCard";
 import GoodnightCard from "@/components/GoodnightCard";
 import Clocks from "@/components/Clocks";
 import Countdown from "@/components/Countdown";
+import ScoreboardCard from "@/components/ScoreboardCard";
+import { getScoreboard } from "@/lib/scores";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +33,7 @@ export default async function Home() {
   const qdate = todayQDate();
   const question = questionFor(qdate);
 
-  const [pingsRes, moodsRes, notesRes, gnRes, settingsRes, answeredRes, myWeather, partnerWeather] = await Promise.all([
+  const [pingsRes, moodsRes, notesRes, gnRes, settingsRes, answeredRes, myWeather, partnerWeather, board, myTurnRes] = await Promise.all([
     supabase.from("pings").select("sender_id").gte("created_at", dayStart),
     supabase.from("moods").select("user_id, emoji, note, created_at").order("created_at", { ascending: false }).limit(20),
     supabase
@@ -46,7 +48,10 @@ export default async function Home() {
     supabase.rpc("answered_today", { d: qdate }),
     getWeather(me.latitude, me.longitude),
     partner ? getWeather(partner.latitude, partner.longitude) : Promise.resolve(null),
+    getScoreboard(me.id, partner?.id ?? null),
+    supabase.from("games").select("id", { count: "exact", head: true }).eq("status", "active").eq("turn", me.id),
   ]);
+  const myTurns = myTurnRes.count ?? 0;
 
   const pings = pingsRes.data ?? [];
   const sentToday = pings.filter((p) => p.sender_id === me.id).length;
@@ -120,6 +125,18 @@ export default async function Home() {
                 : "Tap to answer"}
         </p>
       </Link>
+
+      {myTurns > 0 && (
+        <Link href="/play" className="card flex items-center gap-3 bg-rose/10 ring-2 ring-rose">
+          <span className="text-3xl">🎮</span>
+          <p className="flex-1 font-display text-lg font-semibold">
+            {myTurns === 1 ? "It's your move in a game" : `It's your move in ${myTurns} games`}
+          </p>
+          <span className="text-rose">›</span>
+        </Link>
+      )}
+
+      <ScoreboardCard board={board} meName={me.display_name} partnerName={partnerName} compact />
 
       <GoodnightCard partnerName={partnerName} meDone={!!myGn} partnerDone={!!partnerGn} pairKey={pairKey} />
     </div>
