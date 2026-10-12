@@ -8,6 +8,7 @@ import { getMeAndPartner } from "@/lib/people";
 import { notify } from "@/lib/notify";
 import { isValidTimeZone, quietUntil, zonedToUtc } from "@/lib/time";
 import { questionFor, todayQDate } from "@/lib/questions";
+import { ownsPath } from "@/lib/media";
 
 /** Send the push after the response has gone back, so taps feel instant. */
 function notifyLater(...args: Parameters<typeof notify>) {
@@ -62,11 +63,16 @@ export async function sendPing(kind: PingKind): Promise<Result> {
 
 // ---------- Notes ----------
 /** `deliverLocal` is "YYYY-MM-DDTHH:MM" in the partner's time zone, or empty for "now". */
-export async function sendNote(body: string, deliverLocal?: string): Promise<Result> {
+export async function sendNote(
+  body: string,
+  deliverLocal?: string,
+  media?: { kind: "voice" | "doodle"; path: string }
+): Promise<Result> {
   try {
     const { supabase, me, partner } = await ctx();
     if (!partner) return { ok: false, error: "Your person hasn't joined yet." };
-    const text = body.trim();
+    if (media && !ownsPath(me.id, media.path)) return { ok: false, error: "Upload failed — try again." };
+    const text = body.trim() || (media?.kind === "voice" ? "🎤 Voice note" : media?.kind === "doodle" ? "✏️ A doodle for you" : "");
     if (!text) return { ok: false, error: "Write something first 🙂" };
     if (text.length > 1000) return { ok: false, error: "That's a bit long — keep it under 1000 characters." };
 
@@ -83,6 +89,8 @@ export async function sendNote(body: string, deliverLocal?: string): Promise<Res
       sender_id: me.id,
       recipient_id: partner.id,
       body: text,
+      kind: media?.kind ?? "text",
+      media_path: media?.path ?? null,
       deliver_at: deliverAt.toISOString(),
       delivered_at: scheduled ? null : new Date().toISOString(),
     });
@@ -90,7 +98,12 @@ export async function sendNote(body: string, deliverLocal?: string): Promise<Res
 
     if (!scheduled) {
       notifyLater(partner.id, {
-        title: `💌 A note from ${me.display_name}`,
+        title:
+          media?.kind === "voice"
+            ? `🎤 ${me.display_name} sent you a voice note`
+            : media?.kind === "doodle"
+              ? `✏️ ${me.display_name} drew you something`
+              : `💌 A note from ${me.display_name}`,
         body: text.length > 140 ? text.slice(0, 137) + "…" : text,
         url: "/notes",
       });
@@ -260,4 +273,46 @@ export async function markNotesRead(): Promise<void> {
     .eq("recipient_id", me.id)
     .is("read_at", null)
     .not("delivered_at", "is", null);
+}
+
+const REACTIONS = ["❤️", "😂", "🥺", "😍", "🔥", "🥰"];
+
+export async function reactToNote(noteId: string, emoji: string | null): Promise<Result> {
+  try {
+    const { me, partner } = await ctx();
+    if (emoji && !REACTIONS.includes(emoji)) return { ok: false, error: "Unknown reaction" };
+    const admin = createAdminClient();
+    const { data: note } = await admin.from("notes").select("id, sender_id, recipient_id, reactions, body, delivered_at").eq("id", noteId).single();
+    if (!note || (note.sender_id !== me.id && note.recipient_id !== me.id) || !note.delivered_at) return { ok: false, error: "Note not found" };
+    const reactions = { ...((note.reactions as Record<string, string>) ?? {}) };
+    if (emoji) reactions[me.id] = emoji;
+    else delete reactions[me.id];
+    await admin.from("notes").update({ reactions }).eq("id", noteId);
+    if (emoji && partner && note.sender_id === partner.id) {
+      const preview = String(note.body);
+      notifyLater(partner.id, {
+        title: `${emoji} ${me.display_name} reacted to your note`,
+        body: preview.length > 80 ? preview.slice(0, 77) + "…" : preview,
+        url: "/notes",
+        tag: "reaction",
+      });
+    }
+    revalidatePath("/notes");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+}
+
+export async function setTogetherSince(date: string | null): Promise<Result> {
+  try {
+    const { supabase } = await ctx();
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, error: "Pick a date." };
+    const { error } = await supabase.from("couple_settings").update({ together_since: date, updated_at: new Date().toISOString() }).eq("id", 1);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/", "layout");
+    return { ok: true, message: "Saved ✓" };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
 }

@@ -11,6 +11,11 @@ import GoodnightCard from "@/components/GoodnightCard";
 import Clocks from "@/components/Clocks";
 import Countdown from "@/components/Countdown";
 import ScoreboardCard from "@/components/ScoreboardCard";
+import UsCard from "@/components/UsCard";
+import PlantCard from "@/components/PlantCard";
+import { getPlant } from "@/lib/plant";
+import { dayTogether, distanceKm, nextAnniversary, nextMilestone } from "@/lib/us";
+import { todayPDate } from "@/lib/photos";
 import { getScoreboard } from "@/lib/scores";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +38,7 @@ export default async function Home() {
   const qdate = todayQDate();
   const question = questionFor(qdate);
 
-  const [pingsRes, moodsRes, notesRes, gnRes, settingsRes, answeredRes, myWeather, partnerWeather, board, myTurnRes] = await Promise.all([
+  const [pingsRes, moodsRes, notesRes, gnRes, settingsRes, answeredRes, myWeather, partnerWeather, board, myTurnRes, plant, myPhotoRes] = await Promise.all([
     supabase.from("pings").select("sender_id").gte("created_at", dayStart),
     supabase.from("moods").select("user_id, emoji, note, created_at").order("created_at", { ascending: false }).limit(20),
     supabase
@@ -44,13 +49,22 @@ export default async function Home() {
       .order("delivered_at", { ascending: false })
       .limit(1),
     supabase.from("goodnights").select("user_id, created_at").gte("created_at", nightWindow).order("created_at"),
-    supabase.from("couple_settings").select("next_visit").eq("id", 1).maybeSingle(),
+    supabase.from("couple_settings").select("next_visit, together_since").eq("id", 1).maybeSingle(),
     supabase.rpc("answered_today", { d: qdate }),
     getWeather(me.latitude, me.longitude),
     partner ? getWeather(partner.latitude, partner.longitude) : Promise.resolve(null),
     getScoreboard(me.id, partner?.id ?? null),
     supabase.from("games").select("id", { count: "exact", head: true }).eq("status", "active").eq("turn", me.id),
+    getPlant(me.id, partner?.id ?? null),
+    supabase.from("photo_swaps").select("id").eq("pdate", todayPDate()).maybeSingle(),
   ]);
+  const postedPhoto = !!myPhotoRes.data;
+  const since = settingsRes.data?.together_since ?? null;
+  const day = since ? dayTogether(since, me.timezone) : null;
+  const km =
+    partner && me.latitude != null && me.longitude != null && partner.latitude != null && partner.longitude != null
+      ? distanceKm({ lat: me.latitude, lon: me.longitude }, { lat: partner.latitude, lon: partner.longitude })
+      : null;
   const myTurns = myTurnRes.count ?? 0;
 
   const pings = pingsRes.data ?? [];
@@ -76,14 +90,26 @@ export default async function Home() {
 
   return (
     <div className="space-y-4 pb-24">
-      <header className="pt-2">
-        <p className="text-sm text-muted">{greeting(hour)}, {me.display_name} 👋</p>
-        <h1 className="font-display text-3xl font-semibold">Ryan &amp; Evie</h1>
+      <header className="flex items-start justify-between pt-2">
+        <div>
+          <p className="text-sm text-muted">{greeting(hour)}, {me.display_name} 👋</p>
+          <h1 className="font-display text-3xl font-semibold">Ryan &amp; Evie</h1>
+        </div>
+        <Link href="/settings" prefetch={true} className="rounded-full bg-card p-2.5 text-xl shadow-soft" aria-label="Settings">
+          ⚙️
+        </Link>
       </header>
 
       <PushSetup partnerName={partner?.display_name ?? null} compact />
 
       <Countdown nextVisit={settingsRes.data?.next_visit ?? null} timezone={me.timezone} />
+
+      <UsCard
+        day={day}
+        milestone={day !== null ? nextMilestone(day) : null}
+        anniversary={since ? nextAnniversary(since, me.timezone) : null}
+        km={km}
+      />
 
       <Clocks
         people={[
@@ -93,6 +119,17 @@ export default async function Home() {
       />
 
       <LoveButtons partnerName={partnerName} sentToday={sentToday} receivedToday={receivedToday} />
+
+      {!postedPhoto && (
+        <Link href="/photos" className="card flex items-center gap-3">
+          <span className="text-3xl">📸</span>
+          <div className="flex-1">
+            <p className="font-display text-lg font-semibold">Today&apos;s photo swap</p>
+            <p className="text-sm text-muted">Post a photo of your day to unlock {partnerName}&apos;s.</p>
+          </div>
+          <span className="text-muted">›</span>
+        </Link>
+      )}
 
       <MoodCard partnerName={partnerName} partnerMood={partnerMood} myMood={myMood} />
 
@@ -135,6 +172,8 @@ export default async function Home() {
           <span className="text-rose">›</span>
         </Link>
       )}
+
+      <PlantCard plant={plant} />
 
       <ScoreboardCard board={board} meName={me.display_name} partnerName={partnerName} compact />
 

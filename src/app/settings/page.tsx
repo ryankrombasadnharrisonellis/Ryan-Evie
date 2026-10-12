@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getMeAndPartner } from "@/lib/people";
 import PushSetup from "@/components/PushSetup";
 import ProfileForm from "./ProfileForm";
 import VisitForm from "./VisitForm";
+import TogetherForm from "./TogetherForm";
 
 export const dynamic = "force-dynamic";
 
@@ -10,12 +12,15 @@ export default async function SettingsPage() {
   const supabase = await createClient();
   const { me, partner } = await getMeAndPartner(supabase);
   if (!me) return null;
-  const { data: settings } = await supabase.from("couple_settings").select("next_visit").eq("id", 1).maybeSingle();
+  const { data: settings } = await supabase.from("couple_settings").select("next_visit, together_since").eq("id", 1).maybeSingle();
 
   return (
     <div className="space-y-4 pb-24">
-      <header className="pt-2">
+      <header className="flex items-center gap-3 pt-2">
+        <Link href="/" className="text-2xl text-muted">‹</Link>
         <h1 className="font-display text-3xl font-semibold">Settings</h1>
+      </header>
+      <header className="-mt-3">
         <p className="text-sm text-muted">Logged in as {me.email}</p>
       </header>
 
@@ -32,6 +37,8 @@ export default async function SettingsPage() {
       />
 
       <VisitForm initial={settings?.next_visit ?? null} />
+
+      <TogetherForm initial={settings?.together_since ?? null} />
 
       <PushSetup partnerName={partner?.display_name ?? null} />
 

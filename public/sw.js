@@ -21,6 +21,13 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     (async () => {
       await self.registration.showNotification(title, options);
+      // Number on the app icon (iOS 16.4+ home-screen apps)
+      try {
+        if (typeof data.badge === "number" && self.navigator.setAppBadge) {
+          if (data.badge > 0) await self.navigator.setAppBadge(data.badge);
+          else await self.navigator.clearAppBadge();
+        }
+      } catch {}
       // Tell any open app windows so they can refresh live data
       const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       clients.forEach((c) => c.postMessage({ type: "push", payload: data }));

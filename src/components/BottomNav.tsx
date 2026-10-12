@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 const ITEMS = [
   { href: "/", label: "Home", icon: "🏡" },
   { href: "/notes", label: "Notes", icon: "💌" },
+  { href: "/photos", label: "Photos", icon: "📸" },
   { href: "/question", label: "Question", icon: "❓" },
   { href: "/play", label: "Play", icon: "🎲" },
-  { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
 
 export default function BottomNav() {
@@ -25,6 +25,7 @@ export default function BottomNav() {
             <li key={it.href}>
               <Link
                 href={it.href}
+                prefetch={true}
                 className={`flex flex-col items-center gap-0.5 px-2 pb-2 pt-2.5 text-[11px] font-semibold transition ${
                   active ? "text-rose" : "text-muted"
                 }`}

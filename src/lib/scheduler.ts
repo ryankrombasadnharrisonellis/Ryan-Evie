@@ -3,6 +3,7 @@ import { sendPushToUser, type PushPayload } from "@/lib/push";
 import { notify } from "@/lib/notify";
 import { tzParts } from "@/lib/time";
 import { todayQDate } from "@/lib/questions";
+import { todayPDate } from "@/lib/photos";
 
 /** Runs every minute on the server: delivers scheduled notes, flushes quiet-hours queue, sends reminders. */
 export async function runJobs() {
@@ -64,6 +65,31 @@ export async function runJobs() {
       body: `${other.display_name} has answered — answer yours to see what they said 👀`,
       url: "/question",
       tag: "question",
+    });
+  }
+
+  // 4. Daily photo nudge at 7pm
+  await photoReminders(now, people);
+}
+
+export async function photoReminders(now: Date, people: { id: string; display_name: string; timezone: string }[]) {
+  const admin = createAdminClient();
+  const pdate = todayPDate(now);
+  const { data } = await admin.from("photo_swaps").select("user_id").eq("pdate", pdate);
+  const posted = new Set((data ?? []).map((r) => r.user_id));
+  for (const p of people) {
+    if (posted.has(p.id)) continue;
+    const other = people.find((x) => x.id !== p.id);
+    if (!other || !posted.has(other.id)) continue;
+    const hour = tzParts(now, p.timezone).hour;
+    if (hour < 19 || hour >= 22) continue;
+    const { error } = await admin.from("reminders_sent").insert({ user_id: p.id, kind: "photo", ref_date: pdate });
+    if (error) continue;
+    await notify(p.id, {
+      title: "📸 A photo is waiting for you",
+      body: `${other.display_name} posted today's photo — snap yours to unlock it.`,
+      url: "/photos",
+      tag: "photo",
     });
   }
 }

@@ -1,5 +1,6 @@
 import webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { badgeCount } from "@/lib/badge";
 
 let configured = false;
 function configure() {
@@ -18,6 +19,8 @@ export type PushPayload = {
   url?: string;
   /** Notifications with the same tag replace each other instead of stacking. */
   tag?: string;
+  /** Number shown on the app icon. Filled in automatically. */
+  badge?: number;
 };
 
 /** Send a push to every device a user has registered. Returns how many devices it reached. */
@@ -29,6 +32,11 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
     .select("id, endpoint, p256dh, auth")
     .eq("user_id", userId);
   if (error || !subs?.length) return 0;
+  if (payload.badge === undefined) {
+    try {
+      payload = { ...payload, badge: await badgeCount(userId) };
+    } catch {}
+  }
 
   let delivered = 0;
   await Promise.all(
