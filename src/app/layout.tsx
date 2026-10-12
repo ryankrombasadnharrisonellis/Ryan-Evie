@@ -4,6 +4,7 @@ import "./globals.css";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import BottomNav from "@/components/BottomNav";
 import LiveRefresh from "@/components/LiveRefresh";
+import AppScroll from "@/components/AppScroll";
 
 const sans = Nunito({ subsets: ["latin"], variable: "--font-sans" });
 const display = Fredoka({ subsets: ["latin"], variable: "--font-display", weight: ["500", "600"] });
@@ -38,7 +39,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans antialiased">
         <ServiceWorkerRegister />
         <LiveRefresh />
-        <main className="mx-auto w-full max-w-md px-4 pb-10 pt-4">{children}</main>
+        <AppScroll>
+          <main className="mx-auto w-full max-w-md px-4 pb-10 pt-4">{children}</main>
+        </AppScroll>
         <BottomNav />
       </body>
     </html>
