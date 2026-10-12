@@ -11,8 +11,8 @@ create table if not exists public.allowed_emails (
 alter table public.allowed_emails enable row level security; -- no policies = nobody can read it via the API
 
 insert into public.allowed_emails (email) values
-  ('__RYAN_EMAIL__'),
-  ('__EVIE_EMAIL__')
+  ('ryankrombas@icloud.com'),
+  ('ebennett1756@gmail.com')
 on conflict do nothing;
 
 -- Block any sign-up whose email isn't on the list (belt and braces on top of
@@ -94,3 +94,10 @@ alter table public.push_subscriptions enable row level security;
 drop policy if exists "push: manage your own" on public.push_subscriptions;
 create policy "push: manage your own" on public.push_subscriptions
   for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- 4. Starting names / time zones (editable later in Settings) ------------------
+update public.profiles set display_name = 'Ryan', timezone = 'Europe/Copenhagen', city = 'Copenhagen',
+  latitude = 55.6761, longitude = 12.5683
+  where email = 'ryankrombas@icloud.com';
+update public.profiles set display_name = 'Evie', timezone = 'Europe/London'
+  where email = 'ebennett1756@gmail.com';
